@@ -1,5 +1,6 @@
 #pragma once
 
 enum class bld_error_t {
-	SUCCESS
+	SUCCESS,
+	OUT_OF_HOST_MEM
 };

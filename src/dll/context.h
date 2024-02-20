@@ -3,10 +3,7 @@
 #include <CL/cl.h>
 
 #include "error.h"
-
-enum class bld_context_platform_type_t {
-	OPENCL
-};
+#include "common.h"
 
 struct bld_opencl_environment {
 	cl_context context;
@@ -14,7 +11,7 @@ struct bld_opencl_environment {
 };
 
 struct bld_context_inner_t {
-	bld_context_platform_type_t platform_type;
+	bld_platform_type_t platform_type;
 	union {
 		bld_opencl_environment opencl_environment;
 	};
