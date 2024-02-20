@@ -1,2 +1,3 @@
 bin
 *.swp
+.make_temp_file

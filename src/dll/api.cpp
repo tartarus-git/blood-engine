@@ -2,6 +2,7 @@
 
 #include "error.h"
 #include "context.h"
+#include "pipeline.h"
 
 extern "C" {
 	
@@ -11,6 +12,14 @@ extern "C" {
 
 	DLL_EXPORT bld_error_t bldReleaseContext(bld_context_t context) noexcept {
 		return bldReleaseContext_inner(context);
+	}
+
+	DLL_EXPORT bld_pipeline_t bldCreatePipeline(bld_error_t *err) noexcept {
+		return bldCreatePipeline_inner(err);
+	}
+
+	DLL_EXPORT bld_error_t bldReleasePipeline(bld_pipeline_t pipeline) noexcept {
+		return bldReleasePipeline_inner(pipeline);
 	}
 
 }

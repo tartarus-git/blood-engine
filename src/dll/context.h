@@ -8,10 +8,15 @@ enum class bld_context_platform_type_t {
 	OPENCL
 };
 
+struct bld_opencl_environment {
+	cl_context context;
+	cl_command_queue command_queue;
+};
+
 struct bld_context_inner_t {
 	bld_context_platform_type_t platform_type;
 	union {
-		cl_context platform_context;
+		bld_opencl_environment opencl_environment;
 	};
 };
 

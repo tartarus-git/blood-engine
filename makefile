@@ -17,23 +17,32 @@ bin/lib/main/libblood.so: bin/lib/main/.dirstamp src/bindings/libblood.cpp
 
 blood_engine_dll_sources := \
 bin/lib/api.o \
-bin/lib/context.o
+bin/lib/context.o \
+bin/lib/pipeline.o
 
 bin/lib/main/blood_engine.so: bin/lib/main/.dirstamp $(blood_engine_dll_sources)
 	$(COMPILER_PREAMBLE) -Wall -shared -fvisibility=hidden $(blood_engine_dll_sources) -o bin/lib/main/blood_engine.so
 
-$(eval bin/lib/$(shell $(COMPILER) -MM src/dll/api.cpp))
+$(shell $(COMPILER) -MM src/dll/api.cpp | aprepend --front bin/lib/ > .make_temp_file)
+include .make_temp_file
 bin/lib/api.o: bin/lib/.dirstamp
 	$(COMPILER_PREAMBLE) -Wall -c src/dll/api.cpp -o bin/lib/api.o
 
-$(eval bin/lib/$(shell $(COMPILER) -MM src/dll/context.cpp))
+$(shell $(COMPILER) -MM src/dll/context.cpp | aprepend --front bin/lib/ > .make_temp_file)
+include .make_temp_file
 bin/lib/context.o: bin/lib/.dirstamp
 	$(COMPILER_PREAMBLE) -Wall -c src/dll/context.cpp -o bin/lib/context.o
+
+$(shell $(COMPILER) -MM src/dll/pipeline.cpp | aprepend --front bin/lib/ > .make_temp_file)
+include .make_temp_file
+bin/lib/pipeline.o: bin/lib/.dirstamp
+	$(COMPILER_PREAMBLE) -Wall -c src/dll/pipeline.cpp -o bin/lib/pipeline.o
 
 bin/test: bin/test.o
 	$(COMPILER_PREAMBLE) -Wall bin/test.o -o bin/test
 
-$(eval bin/$(shell $(COMPILER) -MM -I. test/main.cpp))
+$(shell $(COMPILER) -MM -I. test/main.cpp | aprepend --front bin/ > .make_temp_file)
+include .make_temp_file
 bin/test.o: bin/.dirstamp
 	$(COMPILER_PREAMBLE) -Wall -I. -c test/main.cpp -o bin/test.o
 

@@ -1,10 +1,10 @@
 #include "context.h"
 
-cl_context create_optimal_opencl_context(bld_error_t *err) noexcept {
+bld_opencl_environment create_optimal_opencl_environment(bld_error_t *err) noexcept {
 	*err = bld_error_t::SUCCESS;
 
 	// TODO: implement
-	return nullptr;
+	return { };
 }
 
 bld_context_t bldCreateContext_inner(bld_error_t *err) noexcept {
@@ -14,14 +14,19 @@ bld_context_t bldCreateContext_inner(bld_error_t *err) noexcept {
 
 	result->platform_type = bld_context_platform_type_t::OPENCL;
 
-	result->platform_context = create_optimal_opencl_context(err);
+	result->opencl_environment = create_optimal_opencl_environment(err);
 	if (*err != bld_error_t::SUCCESS) { return result; }
 
 	return result;
 }
 
 bld_error_t bldReleaseContext_inner(bld_context_t context) noexcept {
-	switch (clReleaseContext(context->platform_context)) {
+	switch (clReleaseCommandQueue(context->opencl_environment.command_queue)) {
+		case CL_SUCCESS: break;
+		// TODO: Do other errors.
+	}
+
+	switch (clReleaseContext(context->opencl_environment.context)) {
 		case CL_SUCCESS: break;
 		// TODO: Do other errors.
 	}
