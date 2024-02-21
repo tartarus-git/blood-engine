@@ -32,8 +32,8 @@ struct bld_program_inner_t {
 
 using bld_program_t = bld_program_inner_t*;
 
-bld_program_t bldCreateProgram(bld_context_t context, const char *source_code, bld_error_t *err) noexcept;
+bld_program_t bldCreateProgram_inner(bld_context_t context, const char *source_code, bld_error_t *err) noexcept;
 
-bld_error_t bldCompileProgramToPlatform(bld_context_t context, bld_program_t program) noexcept;
+bld_error_t bldCompileProgramToPlatform_inner(bld_context_t context, bld_program_t program) noexcept;
 
-bld_error_t bldCompileProgram(bld_context_t context, bld_program_t program) noexcept;
+bld_error_t bldCompileProgram_inner(bld_context_t context, bld_program_t program) noexcept;

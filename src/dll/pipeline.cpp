@@ -2,20 +2,113 @@
 
 #include <cstdlib>
 
-bld_pipeline_t bldCreatePipeline_inner(bld_context_t context, bld_error_t *err) noexcept {
+cl_image_format opencl_image_format_from_bld_pixel_format(bld_pixel_format_t pixel_format, size_t *pixel_size, bld_error_t *err) noexcept {
+	*pixel_size = 3;
+
+	switch (pixel_format) {
+
+	case bld_pixel_format_t::R8G8B8:
+		pixel_size = 3;
+		return { CL_RGB, CL_UNSIGNED_INT8 };
+
+	default:
+		*err = bld_error_t::PIXEL_FORMAT_UNSUPPORTED;
+		return { CL_RGB, CL_UNSIGNED_INT8 };
+
+	}
+}
+
+bld_pipeline_t bldCreatePipeline_inner(bld_context_t context,
+				       size_t width,
+				       size_t height,
+				       bld_pixel_format_t pixel_format,
+				       bld_error_t *err) noexcept {
 	*err = bld_error_t::SUCCESS;
 
 	bld_pipeline_t result = (bld_pipeline_t)std::malloc(sizeof(bld_pipeline_inner_t));
+	if (result == nullptr) {
+		*err = bld_error_t::OUT_OF_HOST_MEM;
+		return nullptr;
+	}
 
-	if (result == nullptr) { *err = bld_error_t::OUT_OF_HOST_MEM; return nullptr; }
+	size_t opencl_pixel_size;
+	cl_image_format opencl_image_format = opencl_image_format_from_bld_pixel_format(pixel_format, &pixel_size, err);
+	if (*err != bld_error_t::SUCCESS) {
+		std::free(result);
+		return nullptr;
+	}
+
+	cl_image_desc opencl_image_description {
+		CL_MEM_OBJECT_IMAGE2D,
+		width,
+		height,
+		1,
+		0,
+		opencl_pixel_size * width,
+		0,
+		0,
+		0,
+		nullptr
+	};
+
+	cl_int opencl_err = CL_SUCCESS;
+
+	result->opencl_image_a = clCreateImage(context->opencl_environment.context,
+					       0,
+					       opencl_image_format,
+					       opencl_image_description,
+					       nullptr,
+					       &opencl_err);
+	switch (opencl_err) {
+
+	case CL_SUCCESS: break;
+
+	default:
+		*err = bld_error_t::UNKNOWN_ERROR;
+		std::free(result);
+		return nullptr;
+	}
+
+	result->opencl_image_b = clCreateImage(context->opencl_environment.context,
+					       0,
+					       opencl_image_format,
+					       opencl_image_description,
+					       nullptr,
+					       &opencl_err);
+	switch (opencl_err) {
+
+	case CL_SUCCESS: break;
+
+	default:
+		*err = bld_error_t::UNKNOWN_ERROR;
+		goto error_release_image_a_and_free_and_return_nullptr;
+
+	}
+
+	result->programs = nullptr;
+	result->program_count = 0;
 
 	return result;
+
+error_release_image_a_and_free_and_return_nullptr:
+	opencl_err = clReleaseMemObject(result->opencl_image_a);
+	switch (opencl_err) {
+	default:
+		*err = bld_error_t::CORRUPTED_STATE;
+		std::free(result);
+		return nullptr;
+	}
+
+	std::free(result);
+	return nullptr;
 }
 
 bld_error_t bldReleasePipeline_inner(bld_context_t context, bld_pipeline_t pipeline) noexcept {
+	// TODO: Release the other resources that need releasing.
+
 	std::free(pipeline->programs);
 
-	delete pipeline;
+	std::free(pipeline);
 
 	return bld_error_t::SUCCESS;
 }
@@ -99,4 +192,13 @@ bld_program_t bldRemoveProgramFromPipeline_inner(bld_context_t context,
 	pipeline->program_count--;
 
 	return result;
+}
+
+bld_error_t bldSetPipelineDimensions_inner(bld_context_t context,
+					   bld_pipeline_t pipeline,
+					   size_t width,
+					   size_t height) noexcept {
+
+	// TODO: implement
+	return bld_error_t::BUG;
 }

@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
-bld_program_t bldCreateProgram(bld_context_t context, const char *source_code, bld_error_t *err) noexcept {
+bld_program_t bldCreateProgram_inner(bld_context_t context, const char *source_code, bld_error_t *err) noexcept {
 	*err = bld_error_t::SUCCESS;
 
 	bld_program_t result = (bld_program_t)std::malloc(sizeof(bld_program_inner_t));
@@ -54,16 +54,16 @@ free_and_return_null:
 	return nullptr;
 }
 
-bld_error_t bldCompileProgramToPlatform(bld_context_t context, bld_program_t program) noexcept {
+bld_error_t bldCompileProgramToPlatform_inner(bld_context_t context, bld_program_t program) noexcept {
 	// TODO: implement
 	return bld_error_t::BUG;
 }
 
-bld_error_t bldCompileProgram(bld_context_t context, bld_program_t program) noexcept {
+bld_error_t bldCompileProgram_inner(bld_context_t context, bld_program_t program) noexcept {
 	switch (program->compilation_state) {
 
 	case bld_program_compilation_state_t::SOURCE:
-		return bldCompileProgramToPlatform(context, program);
+		return bldCompileProgramToPlatform_inner(context, program);
 
 	case bld_program_compilation_state_t::PLATFORM:
 		break;
@@ -83,6 +83,7 @@ bld_error_t bldCompileProgram(bld_context_t context, bld_program_t program) noex
 
 	case CL_SUCCESS: break;
 
+	// TODO: Do other errors here. Compile errors and such as well.
 	default: return bld_error_t::UNKNOWN_ERROR;
 
 	}
