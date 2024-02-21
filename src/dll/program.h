@@ -9,9 +9,15 @@ enum class bld_program_compilation_state_t {
 	DEVICE
 };
 
-struct bld_program_inner_t {
-	bld_platform_type_t platform_type;
+struct bld_program_parameter_t {
+	bld_data_type_t type;
+	union {
+		bld_float_t float_value;
+		bld_double_t double_value;
+	};
+};
 
+struct bld_program_inner_t {
 	bld_program_compilation_state_t compilation_state;
 	const char *source_code;
 	const char *platform_code;
@@ -19,11 +25,14 @@ struct bld_program_inner_t {
 	union {
 		cl_program opencl_program;
 	};
+
+	bld_program_parameter_t *parameters;
+	size_t parameter_count;
 };
 
 using bld_program_t = bld_program_inner_t*;
 
-bld_program_t bldCreateProgram(bld_context_t context, const char *source_code) noexcept;
+bld_program_t bldCreateProgram(bld_context_t context, const char *source_code, bld_error_t *err) noexcept;
 
 bld_error_t bldCompileProgramToPlatform(bld_context_t context, bld_program_t program) noexcept;
 
