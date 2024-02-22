@@ -32,13 +32,13 @@ bld_pipeline_t bldCreatePipeline_inner(bld_context_t context,
 	}
 
 	size_t opencl_pixel_size;
-	cl_image_format opencl_image_format = opencl_image_format_from_bld_pixel_format(pixel_format, &pixel_size, err);
+	const cl_image_format opencl_image_format = opencl_image_format_from_bld_pixel_format(pixel_format, &pixel_size, err);
 	if (*err != bld_error_t::SUCCESS) {
 		std::free(result);
 		return nullptr;
 	}
 
-	cl_image_desc opencl_image_description {
+	const cl_image_desc opencl_image_description {
 		CL_MEM_OBJECT_IMAGE2D,
 		width,
 		height,
@@ -94,6 +94,11 @@ error_release_image_a_and_free_and_return_nullptr:
 	opencl_err = clReleaseMemObject(result->opencl_image_a);
 	switch (opencl_err) {
 	default:
+		// TODO: Make sure you do this corrupted state thing everywhere where you encounter an error while freeing.
+		// And anywhere where the state becomes corrupted.
+		// If the state is corrupted, the user needs to know about it.
+		// If he does at least he has a chance to remedy the situation. Restart program maybe.
+		// Or try his best to release the context and then create a new context and start from there.
 		*err = bld_error_t::CORRUPTED_STATE;
 		std::free(result);
 		return nullptr;
