@@ -18,8 +18,10 @@ bld_program_t bldCreateProgram_inner(bld_context_t context, const char *source_c
 
 	result->platform_code = nullptr;
 
+	// TODO: Initialize that kernel object in the program struct somewhere in this file.
+
 	cl_int opencl_err = CL_SUCCESS;
-	result->opencl_program = clCreateProgramWithSource(context->opencl_environment.context,
+	result->opencl_data.opencl_program = clCreateProgramWithSource(context->opencl_environment.context,
 							   1,
 							   &(result->source_code),
 							   nullptr,
@@ -73,7 +75,7 @@ bld_error_t bldCompileProgram_inner(bld_context_t context, bld_program_t program
 
 	}
 
-	cl_int opencl_err = clBuildProgram(program->opencl_program,
+	cl_int opencl_err = clBuildProgram(program->opencl_data.opencl_program,
 					   0,
 					   nullptr,
 					   nullptr,

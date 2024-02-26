@@ -4,6 +4,11 @@
 #include "context.h"
 #include "program.h"
 
+enum class bld_pipeline_image_order_t : bool {
+	A_NEWER,
+	B_NEWER
+};
+
 enum class bld_pixel_format_t {
 	R8G8B8
 };
@@ -14,6 +19,21 @@ struct bld_pipeline_inner_t {
 	};
 	union {
 		cl_mem opencl_image_b;
+	};
+
+	bld_pipeline_image_order_t image_order;
+
+	size_t width;
+	size_t height;
+	bld_pixel_format_t pixel_format;
+
+	union {
+		struct {
+			cl_image_format image_format;
+			const void *fill_pattern;
+			size_t pixel_size;
+			size_t image_size;
+		} opencl_cache;
 	};
 
 	bld_program_t *programs;
@@ -72,13 +92,7 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context,
 bld_error_t bldFinishPipelineExecution_inner(bld_context_t context,
 					     bld_pipeline_t pipeline) noexcept;
 
-bld_error_t bldGetPipelineOutput1D_inner(bld_context_t context,
-					 bld_pipeline_t pipeline,
-					 void *destination,
-					 size_t offset,
-					 size_t length) noexcept;
-
-bld_error_t bldGetPipelineOutput2D_inner(bld_context_t context,
+bld_error_t bldGetPipelineOutput_inner(bld_context_t context,
 					 bld_pipeline_t pipeline,
 					 void *destination,
 					 size_t x,

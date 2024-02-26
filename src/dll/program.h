@@ -23,7 +23,10 @@ struct bld_program_inner_t {
 	const char *platform_code;
 
 	union {
-		cl_program opencl_program;
+		struct {
+			cl_program program;
+			cl_kernel kernel;
+		} opencl_data;
 	};
 
 	bld_program_parameter_t *parameters;
