@@ -4,6 +4,7 @@
 #include <cstring>
 
 bld_program_t bldCreateProgram_inner(bld_context_t context, const char *source_code, bld_error_t *err) noexcept {
+
 	*err = bld_error_t::SUCCESS;
 
 	bld_program_t result = (bld_program_t)std::malloc(sizeof(bld_program_inner_t));
@@ -21,11 +22,11 @@ bld_program_t bldCreateProgram_inner(bld_context_t context, const char *source_c
 	// TODO: Initialize that kernel object in the program struct somewhere in this file.
 
 	cl_int opencl_err = CL_SUCCESS;
-	result->opencl_data.opencl_program = clCreateProgramWithSource(context->opencl_environment.context,
-							   1,
-							   &(result->source_code),
-							   nullptr,
-							   &opencl_err);
+	result->opencl_data.program = clCreateProgramWithSource(context->opencl_environment.context,
+								1,
+								&(result->source_code),
+								nullptr,
+								&opencl_err);
 	switch (opencl_err) {
 	case CL_SUCCESS: break;
 	case CL_INVALID_CONTEXT:
@@ -54,6 +55,7 @@ free_and_return_null:
 	std::free((char*)result->source_code);
 	std::free(result);
 	return nullptr;
+
 }
 
 bld_error_t bldCompileProgramToPlatform_inner(bld_context_t context, bld_program_t program) noexcept {
@@ -62,6 +64,7 @@ bld_error_t bldCompileProgramToPlatform_inner(bld_context_t context, bld_program
 }
 
 bld_error_t bldCompileProgram_inner(bld_context_t context, bld_program_t program) noexcept {
+
 	switch (program->compilation_state) {
 
 	case bld_program_compilation_state_t::SOURCE:
@@ -75,20 +78,36 @@ bld_error_t bldCompileProgram_inner(bld_context_t context, bld_program_t program
 
 	}
 
-	cl_int opencl_err = clBuildProgram(program->opencl_data.opencl_program,
+	cl_int opencl_err = clBuildProgram(program->opencl_data.program,
 					   0,
 					   nullptr,
 					   nullptr,
 					   nullptr,
 					   nullptr);
 	switch (opencl_err) {
-
 	case CL_SUCCESS: break;
-
-	// TODO: Do other errors here. Compile errors and such as well.
-	default: return bld_error_t::UNKNOWN_ERROR;
-
+	case CL_BUILD_PROGRAM_FAILURE:
+			 // TODO: Create a separate function that returns the build log.
+		return bld_error_t::BUILD_FAILURE;
+	default:
+		return bld_error_t::UNKNOWN_ERROR;
 	}
 
+	program->opencl_data.kernel = clCreateKernel(program->opencl_data.program,
+						     "main_float",
+						     &opencl_err);
+	switch (opencl_err) {
+	case CL_SUCCESS: break;
+	default:
+		opencl_err = clReleaseProgram(program->opencl_data.program);
+		if (opencl_err != CL_SUCCESS) { return bld_error_t::CORRUPTED_STATE; }
+		return bld_error_t::UNKNOWN_ERROR;
+	}
+
+	// TODO: Set local_work_size by querying it from the opencl api.
+
+	program->compilation_state = bld_program_compilation_state_t::DEVICE;
+
 	return bld_error_t::SUCCESS;
+
 }

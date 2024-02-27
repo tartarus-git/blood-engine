@@ -3,12 +3,13 @@
 #include <cstdlib>
 #include <cstdint>
 #include <thread>
+#include <functional>
 
 #define OPENCL_KERNEL_IMAGE_SOURCE_ARGUMENT_INDEX 0
 #define OPENCL_KERNEL_IMAGE_DESTINATION_ARGUMENT_INDEX 1
 
-cl_image_format opencl_image_format_from_bld_pixel_format(bld_pixel_format_t pixel_format, size_t &pixel_size, bld_error_t *err) noexcept {
-	*pixel_size = 3;
+cl_image_format opencl_image_format_from_bld_pixel_format(bld_pixel_format_t pixel_format, size_t &pixel_size, bld_error_t &err) noexcept {
+	pixel_size = 3;
 
 	switch (pixel_format) {
 
@@ -17,7 +18,7 @@ cl_image_format opencl_image_format_from_bld_pixel_format(bld_pixel_format_t pix
 		return { CL_RGB, CL_UNSIGNED_INT8 };
 
 	default:
-		*err = bld_error_t::PIXEL_FORMAT_UNSUPPORTED;
+		err = bld_error_t::PIXEL_FORMAT_UNSUPPORTED;
 		return { CL_RGB, CL_UNSIGNED_INT8 };
 
 	}
@@ -52,11 +53,11 @@ bld_error_t regenerate_opencl_images(bld_context_t context, bld_pipeline_t pipel
 	const cl_image_format opencl_image_format = opencl_image_format_from_bld_pixel_format(pipeline->pixel_format,
 											      opencl_pixel_size,
 											      err);
-	if (*err != bld_error_t::SUCCESS) { return err; }
+	if (err != bld_error_t::SUCCESS) { return err; }
 
 	const void *opencl_fill_pattern = nullptr;
 	err = opencl_fill_pattern_from_opencl_image_format(opencl_image_format, opencl_fill_pattern);
-	if (*err != bld_error_t::SUCCESS) { return err; }
+	if (err != bld_error_t::SUCCESS) { return err; }
 
 	const cl_image_desc opencl_image_description {
 		CL_MEM_OBJECT_IMAGE2D,
@@ -74,8 +75,8 @@ bld_error_t regenerate_opencl_images(bld_context_t context, bld_pipeline_t pipel
 	cl_int opencl_err = CL_SUCCESS;
 	cl_mem new_opencl_image_a = clCreateImage(context->opencl_environment.context,
 						  0,
-						  opencl_image_format,
-						  opencl_image_description,
+						  &opencl_image_format,
+						  &opencl_image_description,
 						  nullptr,
 						  &opencl_err);
 	switch (opencl_err) {
@@ -90,8 +91,8 @@ bld_error_t regenerate_opencl_images(bld_context_t context, bld_pipeline_t pipel
 
 	cl_mem new_opencl_image_b = clCreateImage(context->opencl_environment.context,
 						  0,
-						  opencl_image_format,
-						  opencl_image_description,
+						  &opencl_image_format,
+						  &opencl_image_description,
 						  nullptr,
 						  &opencl_err);
 	switch (opencl_err) {
@@ -127,7 +128,7 @@ bld_error_t regenerate_opencl_images(bld_context_t context, bld_pipeline_t pipel
 
 	pipeline->opencl_cache.image_format = opencl_image_format;
 
-	std::free(pipeline->opencl_cache.fill_pattern);
+	std::free((void*)pipeline->opencl_cache.fill_pattern);
 	pipeline->opencl_cache.fill_pattern = opencl_fill_pattern;
 
 	pipeline->opencl_cache.pixel_size = opencl_pixel_size;
@@ -149,6 +150,10 @@ bld_pipeline_t bldCreatePipeline_inner(bld_context_t context,
 		return nullptr;
 	}
 
+	// TODO: Somehow track whether or not an object has been initialized or not, or what state it's currently in.
+	// Enum is probably the cleanest way I suppose.
+	// Then every function should first check if the object is in a valid state.
+
 	result->width = width;
 	result->height = height;
 	result->pixel_format = pixel_format;
@@ -157,7 +162,7 @@ bld_pipeline_t bldCreatePipeline_inner(bld_context_t context,
 
 	result->opencl_cache.fill_pattern = nullptr; // SUPER IMPORTANT, DON'T REMOVE
 
-	*err = regenerate_opencl_images(context, pipeline);
+	*err = regenerate_opencl_images(context, result);
 	if (*err != bld_error_t::SUCCESS) {
 		std::free(result);
 		return nullptr;
@@ -194,7 +199,7 @@ bld_error_t bldReleasePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 
 	// TODO: Consider simply having an oversized fill_pattern container array. That way you don't have to
 	// manage it separately, and it'll just dissappear with the free pipeline. Seems simpler and better that way.
-	std::free(pipeline->opencl_cache.fill_pattern);
+	std::free((void*)pipeline->opencl_cache.fill_pattern);
 
 	std::free(pipeline);
 
@@ -328,18 +333,25 @@ bld_error_t bldGetPipelinePixelFormat_inner(bld_context_t context,
 	return bld_error_t::SUCCESS;
 }
 
+// TODO: Put these two things inside of the pipeline struct so that multiple pipelines can be rendered at once.
+// Should they use the same command queue? If they do, were gonna have to fuck around with events and orderings dependencies and whatever.
+// That sounds like a bad idea.
+// SOLUTION: Have every pipeline have it's own command queue. Then they'll be freed from each other.
+// Same context, different command queue, that'll make it simple.
 std::thread render_thread;
 bld_error_t render_thread_return_value = bld_error_t::SUCCESS;
 
-bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipeline) noexcept {
+bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipeline, void *frame_destination) noexcept {
 
-	render_thread = std::thread([]() {
+	render_thread = std::thread([](bld_context_t &context, bld_pipeline_t &pipeline, void *frame_destination) static {
+
 		cl_int opencl_err = clEnqueueFillBuffer(context->opencl_environment.command_queue,
 							pipeline->opencl_image_a,
 							pipeline->opencl_cache.fill_pattern,
-							pipeline->opencl_cache.fill_pattern_size,
+							pipeline->opencl_cache.pixel_size,
 							0,
 							pipeline->opencl_cache.image_size,
+							0,
 							nullptr,
 							nullptr);
 		switch (opencl_err) {
@@ -355,6 +367,7 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 			return render_thread_return_value = bld_error_t::UNKNOWN_ERROR;
 		}
 
+		const size_t global_work_offset[] { 0, 0, 0 };
 
 		for (size_t i = 0; i < pipeline->program_count; i++) {
 			cl_mem opencl_source_image = (pipeline->image_order == bld_pipeline_image_order_t::A_NEWER) ?
@@ -363,7 +376,7 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 			cl_mem opencl_destination_image = (pipeline->image_order == bld_pipeline_image_order_t::A_NEWER) ?
 								pipeline->opencl_image_a : pipeline->opencl_image_b;
 
-			opencl_err = clSetKernelArg(context->opencl_environment.context,
+			opencl_err = clSetKernelArg(pipeline->programs[i]->opencl_data.kernel,
 						    OPENCL_KERNEL_IMAGE_SOURCE_ARGUMENT_INDEX,
 						    sizeof(cl_mem),
 						    &opencl_source_image);
@@ -373,7 +386,7 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 				return render_thread_return_value = bld_error_t::UNKNOWN_ERROR;
 			}
 
-			opencl_err = clSetKernelArg(context->opencl_environment.context,
+			opencl_err = clSetKernelArg(pipeline->programs[i]->opencl_data.kernel,
 						    OPENCL_KERNEL_IMAGE_DESTINATION_ARGUMENT_INDEX,
 						    sizeof(cl_mem),
 						    &opencl_destination_image);
@@ -383,15 +396,20 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 				return render_thread_return_value = bld_error_t::UNKNOWN_ERROR;
 			}
 
-			const size_t global_work_offset[] { 0, 0, 0 };
-			const size_t global_work_size[] { pipeline->width, pipeline->height, 1 };
+			const size_t *local_work_size = pipeline->programs[i]->opencl_data.local_work_size;
+
+			const size_t global_work_size[] {
+				pipeline->width + pipeline->width % local_work_size[0],
+				pipeline->height + pipeline->height % local_work_size[1],
+				1
+			};
 
 			opencl_err = clEnqueueNDRangeKernel(context->opencl_environment.command_queue,
-							    pipeline->programs[i].opencl_data.kernel,
+							    pipeline->programs[i]->opencl_data.kernel,
 							    2,
 							    global_work_offset,
 							    global_work_size,
-							    pipeline->opencl_cache.local_work_size,
+							    local_work_size,
 							    0,
 							    nullptr,
 							    nullptr);
@@ -409,44 +427,37 @@ bld_error_t bldExecutePipeline_inner(bld_context_t context, bld_pipeline_t pipel
 							bld_pipeline_image_order_t::A_NEWER;
 		}
 
+		cl_mem opencl_output_image = (pipeline->image_order == bld_pipeline_image_order_t::A_NEWER) ?
+						pipeline->opencl_image_a : pipeline->opencl_image_b;
+
+		const size_t global_work_size[] { pipeline->width, pipeline->height, 1 };
+
+		opencl_err = clEnqueueReadImage(context->opencl_environment.command_queue,
+						opencl_output_image,
+						true,
+						global_work_offset,
+						global_work_size,
+						pipeline->width * pipeline->opencl_cache.pixel_size,
+						0,
+						frame_destination,
+						0,
+						nullptr,
+						nullptr);
+		switch (opencl_err) {
+		case CL_SUCCESS: break;
+		default:
+			return render_thread_return_value = bld_error_t::UNKNOWN_ERROR;
+		}
+
 		return render_thread_return_value = bld_error_t::SUCCESS;
-	});
+
+	}, std::ref(context), std::ref(pipeline), frame_destination);
 
 	return bld_error_t::SUCCESS;
+
 }
 
 bld_error_t bldFinishPipelineExecution_inner(bld_context_t context, bld_pipeline_t pipeline) noexcept {
 	render_thread.join();
 	return render_thread_return_value;
-}
-
-bld_error_t bldGetPipelineOutput_inner(bld_context_t context,
-					 bld_pipeline_t pipeline,
-					 void *destination,
-					 size_t x,
-					 size_t y,
-					 size_t width,
-					 size_t height) noexcept {
-
-	cl_mem opencl_output_image = (pipeline->image_order == bld_pipeline_image_order_t::A_NEWER) ?
-					pipeline->opencl_image_a : pipeline->opencl_image_b;
-
-	// TODO: Make this async as well. Best case you put it into the rendering code.
-	// The host can make a target array a little earlier and if we handle it properly we can save some time.
-
-	const size_t origin[] { 0, 0, 0 };
-	const size_t region[] { 
-		// TODO: finish.
-
-	cl_int opencl_err = clEnqueueReadImage(context->opencl_environment.command_queue,
-					       opencl_output_image,
-					       true,
-					       );
-	switch (opencl_err) {
-	case CL_SUCCESS: break;
-	default:
-		return bld_error_t::UNKNOWN_ERROR;
-	}
-
-	return bld_error_t::SUCCESS;
 }

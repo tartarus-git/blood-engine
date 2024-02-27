@@ -26,6 +26,7 @@ struct bld_program_inner_t {
 		struct {
 			cl_program program;
 			cl_kernel kernel;
+			size_t local_work_size[3];
 		} opencl_data;
 	};
 

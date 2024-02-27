@@ -89,35 +89,16 @@ extern "C" {
 	}
 
 	DLL_EXPORT bld_error_t bldExecutePipeline(bld_context_t context,
-						  bld_pipeline_t pipeline) noexcept {
+						  bld_pipeline_t pipeline,
+						  void *frame_destination) noexcept {
 
-		return bldExecutePipeline_inner(context, pipeline);
+		return bldExecutePipeline_inner(context, pipeline, frame_destination);
 	}
 
 	DLL_EXPORT bld_error_t bldFinishPipelineExecution(bld_context_t context,
 							  bld_pipeline_t pipeline) noexcept {
 
 		return bldFinishPipelineExecution_inner(context, pipeline);
-	}
-
-	DLL_EXPORT bld_error_t bldGetPipelineOutput1D(bld_context_t context,
-						      bld_pipeline_t pipeline,
-						      void *destination,
-						      size_t offset,
-						      size_t length) noexcept {
-
-		return bldGetPipelineOutput1D_inner(context, pipeline, destination, offset, length);
-	}
-
-	DLL_EXPORT bld_error_t bldGetPipelineOutput2D(bld_context_t context,
-						      bld_pipeline_t pipeline,
-						      void *destination,
-						      size_t x,
-						      size_t y,
-						      size_t width,
-						      size_t height) noexcept {
-
-		return bldGetPipelineOutput2D_inner(context, pipeline, destination, x, y, width, height);
 	}
 
 	DLL_EXPORT bld_program_t bldCreateProgram(bld_context_t context,

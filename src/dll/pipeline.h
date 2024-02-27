@@ -87,15 +87,7 @@ bld_error_t bldGetPipelinePixelFormat_inner(bld_context_t context,
 					    bld_pixel_format_t *pixel_format) noexcept;
 
 bld_error_t bldExecutePipeline_inner(bld_context_t context,
-				     bld_pipeline_t pipeline) noexcept;
+				     bld_pipeline_t pipeline,
+				     void *frame_destination) noexcept;
 
-bld_error_t bldFinishPipelineExecution_inner(bld_context_t context,
-					     bld_pipeline_t pipeline) noexcept;
-
-bld_error_t bldGetPipelineOutput_inner(bld_context_t context,
-					 bld_pipeline_t pipeline,
-					 void *destination,
-					 size_t x,
-					 size_t y,
-					 size_t width,
-					 size_t height) noexcept;
+bld_error_t bldFinishPipelineExecution_inner(bld_context_t context, bld_pipeline_t pipeline) noexcept;
